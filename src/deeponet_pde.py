@@ -229,7 +229,7 @@ def main():
     # - "cvc": Advection
     # - "advd": Advection-diffusion
     problem = "ode"
-    T = 1
+    T = 10
     if problem == "lt":
         npoints_output = 20
         system = lt_system(npoints_output)
@@ -249,7 +249,7 @@ def main():
     # space = FinitePowerSeries(N=100, M=1)
     # space = FiniteChebyshev(N=20, M=1)
     # space = GRF(2, length_scale=0.2, N=2000, interp="cubic")  # "lt"
-    space = GRF(1, length_scale=0.2, N=1000, interp="cubic")
+    space = GRF(T, length_scale=0.2, N=1000, interp="cubic")
     # space = GRF(T, length_scale=0.2, N=1000 * T, interp="cubic")
 
     # Hyperparameters

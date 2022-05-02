@@ -1,0 +1,4 @@
+*.pyc
+/model/*
+*.png
+*.dat
