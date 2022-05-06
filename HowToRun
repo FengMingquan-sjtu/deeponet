@@ -1,0 +1,2 @@
+CUDA_VISIBLE_DEVICES=2 python3 src/deeponet_pde.py
+python3 src/test.py

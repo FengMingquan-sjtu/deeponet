@@ -49,7 +49,7 @@ def test():
     test_m = 100 #num of test sensors
     num_train = 10
     num_test = 10
-    T = 10
+    T = 1
     lr = 0.001
     epochs = 50000
 
@@ -63,7 +63,7 @@ def test():
         )
     
     system = ode_system(T)
-    space = GRF(T, length_scale=0.2, N=1000, interp="cubic")
+    space = GRF(T, length_scale=0.2, N=T*1000, interp="cubic")
     X_train, y_train = system.gen_operator_data(space, m, num_train)
     X_test, y_test = system.gen_operator_data(space, m, num_test)
     X_test_trim = trim_to_65535(X_test)[0]
@@ -73,7 +73,7 @@ def test():
         )
     model = dde.Model(data, net)
     model.compile("adam", lr=lr, metrics=[mean_squared_error_outlier])
-    model.restore("model/model.ckpt-48000", verbose=1)
+    model.restore("model/model.ckpt-50000", verbose=1)
     safe_test(model, data, X_test, y_test)
 
     tests = [
@@ -85,7 +85,7 @@ def test():
     for u, fname in tests:
         sensors = np.linspace(0, T, num=m)[:, None]
         sensor_values = u(sensors)
-        x = np.linspace(0, 2*T, num=test_m)[:, None]
+        x = np.linspace(0, T, num=test_m)[:, None]
         
         X_test = [np.tile(sensor_values.T, (test_m, 1)), x]
         y_test = system.eval_s_func(u, x)

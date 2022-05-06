@@ -61,6 +61,8 @@ class ODESystem(object):
 
     @timing
     def gen_operator_data(self, space, m, num):
+        # m: number of sensors 
+        # num: number of 't'
         print("Generating operator data...", flush=True)
         features = space.random(num)
         sensors = np.linspace(0, self.T, num=m)[:, None]
