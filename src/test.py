@@ -11,35 +11,8 @@ from utils import merge_values, trim_to_65535, mean_squared_error_outlier, safe_
 
 import matplotlib.pyplot as plt
 
-def ode_system(T):
-    """ODE"""
+from deeponet_pde import  ode_system, dr_system
 
-    def g(s, u, x):
-        # Antiderivative
-        return u
-        # Nonlinear ODE
-        # return -s**2 + u
-        # Gravity pendulum
-        # k = 1
-        # return [s[1], - k * np.sin(s[0]) + u]
-
-    s0 = [0]
-    # s0 = [0, 0]  # Gravity pendulum
-    return ODESystem(g, s0, T)
-
-def test_u_ode(nn, system, T, m, model, data, u, fname, num=100):
-    """Test ODE"""
-    sensors = np.linspace(0, T, num=m)[:, None]
-    sensor_values = u(sensors)
-    #x = np.linspace(0, T, num=num)[:, None]
-    x = sensors
-    X_test = [np.tile(sensor_values.T, (num, 1)), x]
-    y_test = system.eval_s_func(u, x)
-    if nn != "opnn":
-        X_test = merge_values(X_test)
-    y_pred = model.predict(data.transform_inputs(X_test))
-    np.savetxt(fname, np.hstack((x, y_test, y_pred)))
-    print("L2relative error:", dde.metrics.l2_relative_error(y_test, y_pred))
 
 def test():
     activation = "relu"
@@ -47,22 +20,31 @@ def test():
     dim_x = 1 
     m = 100 #num of sensors 
     test_m = 100 #num of test sensors
-    num_train = 10
-    num_test = 10
+    num_train = 1
+    num_test = 1
     T = 1
     lr = 0.001
-    epochs = 50000
+    epochs = 500000
+    problem = "dr"
+
+    if problem == "ode":
+        width = 40
+        system = ode_system(T)
+    elif problem == "dr":
+        width = 100
+        npoints_output = 100
+        system = dr_system(T, npoints_output)
 
     net = dde.maps.OpNN(
-            [m, 40, 40],
-            [dim_x, 40, 40],
+        [m, width, width],
+        [dim_x, width, width],
             activation,
             initializer,
             use_bias=True,
             stacked=False,
         )
     
-    system = ode_system(T)
+    
     space = GRF(T, length_scale=0.2, N=T*1000, interp="cubic")
     X_train, y_train = system.gen_operator_data(space, m, num_train)
     X_test, y_test = system.gen_operator_data(space, m, num_test)
@@ -73,34 +55,42 @@ def test():
         )
     model = dde.Model(data, net)
     model.compile("adam", lr=lr, metrics=[mean_squared_error_outlier])
-    model.restore("model/model.ckpt-50000", verbose=1)
+    model.restore("model_5/model.ckpt-89000", verbose=1)
     safe_test(model, data, X_test, y_test)
 
     tests = [
         (lambda x: x, "x.dat"),
         (lambda x: np.sin(np.pi * x), "sinx.dat"),
         (lambda x: np.sin(2 * np.pi * x), "sin2x.dat"),
+        (lambda x: np.sin(4 * np.pi * x), "sin4x.dat"),
+        (lambda x: np.sin(6 * np.pi * x), "sin6x.dat"),
         (lambda x: x * np.sin(2 * np.pi * x), "xsin2x.dat"),
     ]
     for u, fname in tests:
-        sensors = np.linspace(0, T, num=m)[:, None]
-        sensor_values = u(sensors)
-        x = np.linspace(0, T, num=test_m)[:, None]
-        
-        X_test = [np.tile(sensor_values.T, (test_m, 1)), x]
-        y_test = system.eval_s_func(u, x)
-        y_pred = model.predict(data.transform_inputs(X_test))
-        #np.savetxt(fname, np.hstack((x, y_test, y_pred)))
-        draw(x, y_pred, y_test, title=fname)
-        print("L2relative error:", dde.metrics.l2_relative_error(y_test, y_pred))
+        if problem == "ode":
+            sensors = np.linspace(0, T, num=m)[:, None]
+            sensor_values = u(sensors)
+            x = np.linspace(0, T, num=test_m)[:, None]
+            
+            X_test = [np.tile(sensor_values.T, (test_m, 1)), x]
+            y_test = system.eval_s_func(u, x)
+            y_pred = model.predict(data.transform_inputs(X_test))
+            #np.savetxt(fname, np.hstack((x, y_test, y_pred)))
+            draw(x, y_pred, y_test, title=fname)
+            print("L2relative error:", dde.metrics.l2_relative_error(y_test, y_pred))
 
+        elif problem == "dr":
+            sensors = np.linspace(0, 1, num=m)
+            sensor_value = u(sensors)
+            s = system.eval_s(sensor_value)
+            xt = np.array(list(itertools.product(range(m), range(system.Nt))))
+            xt = xt * [1 / (m - 1), T / (system.Nt - 1)]
+            X_test = [np.tile(sensor_value, (m * system.Nt, 1)), xt]
+            y_test = s.reshape([m * system.Nt, 1])
+            y_pred = model.predict(data.transform_inputs(X_test))
+            np.savetxt(fname, np.hstack((xt, y_test, y_pred)))
 
 def draw(x, y_pred, y_rk, title=""):
-    
-    # inputs:
-    # data=map(string -> list of float), eg. {"obj":[0.1,...], "constr":[0.1,..], .. }
-    # titme = str
-   
     fig, ax = plt.subplots()
     
     ax.plot(x, y_pred, label="pred")

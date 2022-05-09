@@ -1,2 +1,13 @@
-CUDA_VISIBLE_DEVICES=2 python3 src/deeponet_pde.py
-python3 src/test.py
+1. (optional)清空./model_* 文件夹
+2. CUDA_VISIBLE_DEVICES=2 python3 src/deeponet_pde.py
+  或者：CUDA_VISIBLE_DEVICES=2 setsid   python3 src/deeponet_pde.py 1>out.txt  2>err.txt
+3. 修改src/test.py加载的模型路径和名称。
+4. python3 src/test.py
+
+
+model_0 --> T=4, N=1000, ODE=nonlinear(s^2+u) --> nan
+model_1 --> T=1, N=1000, ODE=nonlinear(s^2+u) --> correct
+model_2 --> T=2, N=1000, ODE=nonlinear(s^2+u) --> nan
+model_4 --> T=1, N=1000, ODE=nonlinear(gravity), sensors=100
+
+model_6 --> T=1, PDE=DR.

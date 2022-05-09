@@ -63,6 +63,7 @@ class GRF(object):
     def random(self, n):
         """Generate `n` random feature vectors.
         """
+        # different feature corresponds to different u, thus here is the sampling of random u.
         u = np.random.randn(self.N, n)
         return np.dot(self.L, u).T
 

@@ -1,4 +1,5 @@
 *.pyc
 /model/*
+/model_*/*
 *.png
 *.dat

@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import itertools
+import os 
 
 import numpy as np
 import tensorflow as tf
@@ -99,15 +100,15 @@ def ode_system(T):
 
     def g(s, u, x):
         # Antiderivative
-        return u
+        # return u
         # Nonlinear ODE
         # return -s**2 + u
         # Gravity pendulum
-        # k = 1
-        # return [s[1], - k * np.sin(s[0]) + u]
+        k = 1
+        return [s[1], - k * np.sin(s[0]) + u]
 
-    s0 = [0]
-    # s0 = [0, 0]  # Gravity pendulum
+    # s0 = [0]
+    s0 = [0, 0]  # Gravity pendulum
     return ODESystem(g, s0, T)
 
 
@@ -166,13 +167,17 @@ def run(problem, system, space, T, m, nn, net, lr, epochs, num_train, num_test):
 
     model = dde.Model(data, net)
     model.compile("adam", lr=lr, metrics=[mean_squared_error_outlier])
+
+    model_idx = 0
+    while(os.path.isdir("model_%d"%model_idx)):
+        model_idx +=1
     checker = dde.callbacks.ModelCheckpoint(
-        "model/model.ckpt", save_better_only=True, period=1000
+        "model_%d/model.ckpt"%model_idx, save_better_only=True, period=1000
     )
     losshistory, train_state = model.train(epochs=epochs, callbacks=[checker])
     print("# Parameters:", np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
     dde.saveplot(losshistory, train_state, issave=True, isplot=True)
-
+    '''
     model.restore("model/model.ckpt-" + str(train_state.best_step), verbose=1)
     safe_test(model, data, X_test, y_test)
 
@@ -219,7 +224,7 @@ def run(problem, system, space, T, m, nn, net, lr, epochs, num_train, num_test):
         u = space.eval_u(features, np.sin(np.pi * sensors) ** 2)
         for i in range(u.shape[0]):
             test_u_advd(nn, system, T, m, model, data, lambda x: u[i], str(i) + ".dat")
-
+    '''
 
 def main():
     # Problems:
@@ -228,8 +233,8 @@ def main():
     # - "dr": Diffusion-reaction
     # - "cvc": Advection
     # - "advd": Advection-diffusion
-    problem = "ode"
-    T = 4
+    problem = "dr"
+    T = 1
     if problem == "lt":
         npoints_output = 20
         system = lt_system(npoints_output)
@@ -250,24 +255,25 @@ def main():
     # space = FiniteChebyshev(N=20, M=1)
     # space = GRF(2, length_scale=0.2, N=2000, interp="cubic")  # "lt"
     # space = GRF(T, length_scale=0.2, N=1000, interp="cubic")
-    space = GRF(T, length_scale=0.2, N=250 * T, interp="cubic")
+    space = GRF(T, length_scale=0.2, N=1000, interp="cubic")
 
     # Hyperparameters
-    m = 100
+    m = 100  #sensors
     num_train = 10000
-    num_test = 100000
+    num_test = 1000
     lr = 0.001
-    epochs = 50000
+    epochs = 100000
 
     # Network
     nn = "opnn"
     activation = "relu"
     initializer = "Glorot normal"  # "He normal" or "Glorot normal"
     dim_x = 1 if problem in ["ode", "lt"] else 2
+    width = 40 if problem in ["ode"] else 100
     if nn == "opnn":
         net = dde.maps.OpNN(
-            [m, 40, 40],
-            [dim_x, 40, 40],
+            [m, width, width],
+            [dim_x, width, width],
             activation,
             initializer,
             use_bias=True,
